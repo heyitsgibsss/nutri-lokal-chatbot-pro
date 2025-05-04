@@ -32,18 +32,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const location = useLocation();
+  const isHomePage = location.pathname === "/";
 
   // Initialize chat session
   useEffect(() => {
     const initializeChat = async () => {
       setIsInitializing(true);
       try {
-        // Check if this is a direct page load/refresh on the homepage
-        const isHomePageRefresh = location.pathname === "/" && !sessionStorage.getItem('current_session_id');
+        // Force start a new chat if on homepage and refreshing
+        if (isHomePage) {
+          // Create temporary welcome message (not saved to DB yet)
+          const welcomeMessage = {
+            id: `temp-${Date.now()}`,
+            content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
+            isUser: false,
+            timestamp: new Date().toISOString(),
+          };
+          
+          setMessages([welcomeMessage]);
+          setSessionId(undefined);
+          setHasUserInput(false);
+          sessionStorage.removeItem('current_session_id');
+          setIsInitializing(false);
+          return;
+        }
         
-        // If sessionId is provided or we're on a chat detail page, try to load that session
-        if (sessionId || routeSessionId) {
-          const session = await getSessionById(sessionId || routeSessionId || '');
+        // If on chat detail page, load that specific session
+        if (routeSessionId) {
+          const session = await getSessionById(routeSessionId);
           if (session) {
             const sessionMessages = await getSessionMessages(session.id);
             setMessages(sessionMessages.map(msg => ({
@@ -63,69 +79,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
             return;
           }
         }
-        
-        // If homepage is refreshed or we have no session, create temp session (not saved to DB yet)
-        if (isHomePageRefresh || !sessionStorage.getItem('current_session_id')) {
-          // Only create a temporary session initially, will be saved to DB only after user input
-          setSessionId(undefined); // Clear any previous session ID
-          
-          // Add welcome message (only in memory, not saved to DB yet)
-          const welcomeMessage = {
-            id: `temp-${Date.now()}`,
-            content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
-            isUser: false,
-            timestamp: new Date().toISOString(),
-          };
-          
-          setMessages([welcomeMessage]);
-          sessionStorage.removeItem('current_session_id');
-        } else {
-          // If returning to homepage without refresh, try to load the last session
-          const storedSessionId = sessionStorage.getItem('current_session_id');
-          if (storedSessionId) {
-            const session = await getSessionById(storedSessionId);
-            if (session) {
-              const sessionMessages = await getSessionMessages(storedSessionId);
-              setMessages(sessionMessages.map(msg => ({
-                id: msg.id,
-                content: msg.content,
-                isUser: msg.is_user,
-                timestamp: msg.timestamp
-              })));
-              setSessionId(storedSessionId);
-              
-              // Check if this session has any user messages
-              const hasUserMessages = sessionMessages.some(msg => msg.is_user);
-              setHasUserInput(hasUserMessages);
-            } else {
-              // Session not found, create new temporary one
-              createTemporarySession();
-            }
-          } else {
-            // No stored session, use the most recent one with user input
-            const sessions = await getSessions();
-            if (sessions.length > 0) {
-              // Use the most recent session
-              const mostRecent = sessions[0];
-              setSessionId(mostRecent.id);
-              sessionStorage.setItem('current_session_id', mostRecent.id);
-              const sessionMessages = await getSessionMessages(mostRecent.id);
-              setMessages(sessionMessages.map(msg => ({
-                id: msg.id,
-                content: msg.content,
-                isUser: msg.is_user,
-                timestamp: msg.timestamp
-              })));
-              
-              // Check if this session has any user messages
-              const hasUserMessages = sessionMessages.some(msg => msg.is_user);
-              setHasUserInput(hasUserMessages);
-            } else {
-              // No sessions available, create new temporary one
-              createTemporarySession();
-            }
-          }
-        }
       } catch (error) {
         console.error('Error initializing chat:', error);
         toast({
@@ -138,32 +91,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
       }
     };
 
-    // Create a temporary session (not saved to DB yet)
-    const createTemporarySession = () => {
-      // Add welcome message (only in memory)
-      const welcomeMessage = {
-        id: `temp-${Date.now()}`,
-        content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
-        isUser: false,
-        timestamp: new Date().toISOString(),
-      };
-      
-      setMessages([welcomeMessage]);
-      setHasUserInput(false);
-    };
-
     initializeChat();
-
-    // Modified beforeunload handler - only clear session if there's no user input
-    const handleBeforeUnload = () => {
-      if (location.pathname === "/" && !hasUserInput) {
-        sessionStorage.removeItem('current_session_id');
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [initialSessionId, routeSessionId, toast, location.pathname, hasUserInput]);
+  }, [initialSessionId, routeSessionId, toast, location.pathname, isHomePage]);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
