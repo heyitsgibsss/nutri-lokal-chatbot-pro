@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -89,7 +90,7 @@ const ChatInterface: React.FC = () => {
       const savedBotMessage = addMessage(sessionId, newBotMessage);
       setMessages(prevMessages => [...prevMessages, savedBotMessage]);
       
-      // Send WhatsApp notification if enabled
+      // Send WhatsApp notification via Fonnte if enabled
       const whatsappConfig = getWhatsAppConfig();
       if (whatsappConfig.enabled && whatsappConfig.phoneNumber && whatsappConfig.apiKey) {
         const notificationContent = `NutriLokal: Ada pesan baru dari chatbot\n\nPertanyaan: ${userMessage}\n\nJawaban: ${botResponse}`;
@@ -97,13 +98,13 @@ const ChatInterface: React.FC = () => {
         const notificationSent = await sendWhatsAppNotification(
           notificationContent, 
           whatsappConfig.phoneNumber, 
-          whatsappConfig.apiKey || ''
+          whatsappConfig.apiKey
         );
         
         if (notificationSent) {
-          console.log('WhatsApp notification sent successfully');
+          console.log('WhatsApp notification sent successfully via Fonnte');
         } else {
-          console.error('Failed to send WhatsApp notification');
+          console.error('Failed to send WhatsApp notification via Fonnte');
         }
       }
     } catch (error) {

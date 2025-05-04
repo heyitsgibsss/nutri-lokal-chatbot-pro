@@ -17,5 +17,6 @@ export interface ChatSession {
 export interface WhatsAppConfig {
   enabled: boolean;
   phoneNumber: string;
-  apiKey?: string; 
+  apiKey: string;
+  provider: 'fonnte';
 }

@@ -16,7 +16,8 @@ const Settings: React.FC = () => {
   const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppConfig>({
     enabled: false,
     phoneNumber: '',
-    apiKey: ''
+    apiKey: '',
+    provider: 'fonnte'
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -32,12 +33,24 @@ const Settings: React.FC = () => {
     
     try {
       // Validate phone number format
-      if (whatsAppConfig.enabled && !whatsAppConfig.phoneNumber.match(/^\+[0-9]{10,15}$/)) {
+      if (whatsAppConfig.enabled && !whatsAppConfig.phoneNumber.match(/^\+?[0-9]{10,15}$/)) {
         toast({
           title: "Format nomor tidak valid",
           description: "Masukkan nomor WhatsApp dengan format yang benar (contoh: +628123456789)",
           variant: "destructive",
         });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Validate API key if WhatsApp is enabled
+      if (whatsAppConfig.enabled && !whatsAppConfig.apiKey) {
+        toast({
+          title: "API Key diperlukan",
+          description: "Masukkan API Key Fonnte untuk mengaktifkan notifikasi WhatsApp",
+          variant: "destructive",
+        });
+        setIsLoading(false);
         return;
       }
       
@@ -47,7 +60,7 @@ const Settings: React.FC = () => {
       toast({
         title: "Pengaturan disimpan",
         description: whatsAppConfig.enabled 
-          ? "Notifikasi WhatsApp telah diaktifkan" 
+          ? "Notifikasi WhatsApp melalui Fonnte telah diaktifkan" 
           : "Notifikasi WhatsApp telah dinonaktifkan",
       });
     } catch (error) {
@@ -81,7 +94,7 @@ const Settings: React.FC = () => {
           <h1 className="text-2xl font-bold mb-6 text-nutrilokal-blue-dark">Pengaturan</h1>
           
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 className="text-lg font-medium mb-4 text-nutrilokal-green-dark">Notifikasi WhatsApp</h2>
+            <h2 className="text-lg font-medium mb-4 text-nutrilokal-green-dark">Notifikasi WhatsApp (Fonnte)</h2>
             
             <form onSubmit={handleSubmit}>
               <div className="flex items-center space-x-2 mb-6">
@@ -115,18 +128,18 @@ const Settings: React.FC = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="api-key" className="text-gray-700">
-                    API Key (Opsional)
+                    API Key Fonnte
                   </Label>
                   <Input
                     id="api-key"
                     type="password"
-                    placeholder="Masukkan API key WhatsApp"
+                    placeholder="Masukkan API key dari dashboard Fonnte Anda"
                     value={whatsAppConfig.apiKey || ''}
                     onChange={(e) => setWhatsAppConfig(prev => ({ ...prev, apiKey: e.target.value }))}
                     disabled={!whatsAppConfig.enabled}
                   />
                   <p className="text-xs text-gray-500">
-                    Diperlukan jika menggunakan WhatsApp Business API
+                    Dapatkan API key dari dashboard <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-nutrilokal-blue hover:underline">Fonnte</a>
                   </p>
                 </div>
               </div>

@@ -15,7 +15,7 @@ const InfoSection: React.FC = () => {
     },
     {
       title: 'Notifikasi WhatsApp',
-      description: 'Dapatkan saran gizi dan pengingat langsung ke WhatsApp Anda.',
+      description: 'Dapatkan saran gizi dan pengingat langsung ke WhatsApp Anda melalui Fonnte.',
       icon: '📱'
     }
   ];

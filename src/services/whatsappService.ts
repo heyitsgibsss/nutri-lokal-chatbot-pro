@@ -14,51 +14,56 @@ export const getWhatsAppConfig = (): WhatsAppConfig => {
   return config ? JSON.parse(config) : {
     enabled: false,
     phoneNumber: '',
-    apiKey: ''
+    apiKey: '',
+    provider: 'fonnte'
   };
 };
 
-// Send WhatsApp notification
+// Send WhatsApp notification via Fonnte API
 export const sendWhatsAppNotification = async (
   message: string,
   phoneNumber: string,
   apiKey: string
 ): Promise<boolean> => {
   try {
-    console.log(`Sending WhatsApp notification to: ${phoneNumber}`);
+    console.log(`Sending WhatsApp notification to: ${phoneNumber} via Fonnte`);
     console.log(`Message content: ${message}`);
     
-    // In a real implementation, you would make an API call to a WhatsApp API service
-    // For example, using the WhatsApp Business API or services like Twilio or MessageBird
+    // Validate API key and phone number
+    if (!apiKey) {
+      console.error('Missing API key for Fonnte');
+      return false;
+    }
     
-    // This is a simulated API call
-    // Replace this with your actual WhatsApp API implementation
+    if (!phoneNumber) {
+      console.error('Missing phone number');
+      return false;
+    }
     
-    // Example using WhatsApp Cloud API (Meta)
-    // Note: This is a simplified example. In production, you'd need proper error handling
-    /*
-    const response = await fetch(`https://graph.facebook.com/v17.0/YOUR_PHONE_NUMBER_ID/messages`, {
+    // Format phone number if needed (remove '+' as Fonnte may not need it)
+    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
+    
+    // Call Fonnte API
+    const response = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': apiKey,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: phoneNumber,
-        type: 'text',
-        text: { body: message }
+        target: formattedPhone,
+        message: message
       })
     });
     
     const data = await response.json();
-    return data.messages && data.messages[0].id;
-    */
+    console.log('Fonnte API response:', data);
     
-    // For this demo, we'll simulate a successful API call
-    return true;
+    // Check if the message was sent successfully
+    return data && data.status === true;
+    
   } catch (error) {
-    console.error('Error sending WhatsApp notification:', error);
+    console.error('Error sending WhatsApp notification via Fonnte:', error);
     return false;
   }
 };
