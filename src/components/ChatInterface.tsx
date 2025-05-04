@@ -228,21 +228,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
         setMessages(prevMessages => [...prevMessages, savedBotMessage]);
       }
       
-      // Send WhatsApp notification via Fonnte if enabled
+      // Send WhatsApp notification via Fonnte if enabled and properly configured
       const whatsappConfig = getWhatsAppConfig();
-      if (whatsappConfig.enabled && whatsappConfig.phoneNumber && whatsappConfig.apiKey) {
-        const notificationContent = `NutriLokal: Ada pesan baru dari chatbot\n\nPertanyaan: ${userMessage}\n\nJawaban: ${botResponse}`;
+      if (whatsappConfig.enabled && 
+          whatsappConfig.phoneNumber && 
+          whatsappConfig.phoneNumber.trim() !== '' && 
+          whatsappConfig.apiKey && 
+          whatsappConfig.apiKey.trim() !== '') {
         
-        const notificationSent = await sendWhatsAppNotification(
-          notificationContent, 
-          whatsappConfig.phoneNumber, 
-          whatsappConfig.apiKey
-        );
-        
-        if (notificationSent) {
-          console.log('WhatsApp notification sent successfully via Fonnte');
-        } else {
-          console.error('Failed to send WhatsApp notification via Fonnte');
+        try {
+          const notificationContent = `NutriLokal: Ada pesan baru dari chatbot\n\nPertanyaan: ${userMessage}\n\nJawaban: ${botResponse}`;
+          
+          const notificationSent = await sendWhatsAppNotification(
+            notificationContent, 
+            whatsappConfig.phoneNumber, 
+            whatsappConfig.apiKey
+          );
+          
+          if (notificationSent) {
+            console.log('WhatsApp notification sent successfully via Fonnte');
+          } else {
+            console.log('Failed to send WhatsApp notification via Fonnte');
+          }
+        } catch (whatsappError) {
+          console.log('Error sending WhatsApp notification:', whatsappError);
+          // Silently fail - don't break the chat experience if notifications fail
         }
       }
     } catch (error) {
