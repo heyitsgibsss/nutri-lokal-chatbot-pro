@@ -28,6 +28,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId || routeSessionId);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [hasUserInput, setHasUserInput] = useState(false); // Track if the user has sent any messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const location = useLocation();
@@ -53,39 +54,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
             })));
             setSessionId(session.id);
             sessionStorage.setItem('current_session_id', session.id);
+            
+            // Check if this session has any user messages
+            const hasUserMessages = sessionMessages.some(msg => msg.is_user);
+            setHasUserInput(hasUserMessages);
+            
             setIsInitializing(false);
             return;
           }
         }
         
-        // If homepage is refreshed or we have no session, create new session
+        // If homepage is refreshed or we have no session, create temp session (not saved to DB yet)
         if (isHomePageRefresh || !sessionStorage.getItem('current_session_id')) {
-          // Create a new session
-          const newSession = await createSession();
-          if (newSession) {
-            setSessionId(newSession.id);
-            sessionStorage.setItem('current_session_id', newSession.id);
-            
-            // Add welcome message
-            if (newSession.id) {
-              const welcomeMessage = {
-                content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
-                isUser: false,
-                timestamp: new Date().toISOString(),
-              };
-              
-              const savedMessage = await addMessage(newSession.id, welcomeMessage);
-              if (savedMessage) {
-                setMessages([savedMessage]);
-              }
-            }
-          } else {
-            toast({
-              title: "Error",
-              description: "Tidak dapat membuat sesi chat baru.",
-              variant: "destructive",
-            });
-          }
+          // Only create a temporary session initially, will be saved to DB only after user input
+          setSessionId(undefined); // Clear any previous session ID
+          
+          // Add welcome message (only in memory, not saved to DB yet)
+          const welcomeMessage = {
+            id: `temp-${Date.now()}`,
+            content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
+            isUser: false,
+            timestamp: new Date().toISOString(),
+          };
+          
+          setMessages([welcomeMessage]);
+          sessionStorage.removeItem('current_session_id');
         } else {
           // If returning to homepage without refresh, try to load the last session
           const storedSessionId = sessionStorage.getItem('current_session_id');
@@ -100,12 +93,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
                 timestamp: msg.timestamp
               })));
               setSessionId(storedSessionId);
+              
+              // Check if this session has any user messages
+              const hasUserMessages = sessionMessages.some(msg => msg.is_user);
+              setHasUserInput(hasUserMessages);
             } else {
-              // Session not found, create new one
-              createNewSession();
+              // Session not found, create new temporary one
+              createTemporarySession();
             }
           } else {
-            // No stored session, use the most recent one
+            // No stored session, use the most recent one with user input
             const sessions = await getSessions();
             if (sessions.length > 0) {
               // Use the most recent session
@@ -119,9 +116,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
                 isUser: msg.is_user,
                 timestamp: msg.timestamp
               })));
+              
+              // Check if this session has any user messages
+              const hasUserMessages = sessionMessages.some(msg => msg.is_user);
+              setHasUserInput(hasUserMessages);
             } else {
-              // No sessions available, create new one
-              createNewSession();
+              // No sessions available, create new temporary one
+              createTemporarySession();
             }
           }
         }
@@ -137,51 +138,71 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
       }
     };
 
-    const createNewSession = async () => {
-      const newSession = await createSession();
-      if (newSession) {
-        setSessionId(newSession.id);
-        sessionStorage.setItem('current_session_id', newSession.id);
-        
-        // Add welcome message
-        if (newSession.id) {
-          const welcomeMessage = {
-            content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
-            isUser: false,
-            timestamp: new Date().toISOString(),
-          };
-          
-          const savedMessage = await addMessage(newSession.id, welcomeMessage);
-          if (savedMessage) {
-            setMessages([savedMessage]);
-          }
-        }
-      }
+    // Create a temporary session (not saved to DB yet)
+    const createTemporarySession = () => {
+      // Add welcome message (only in memory)
+      const welcomeMessage = {
+        id: `temp-${Date.now()}`,
+        content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
+        isUser: false,
+        timestamp: new Date().toISOString(),
+      };
+      
+      setMessages([welcomeMessage]);
+      setHasUserInput(false);
     };
 
     initializeChat();
 
-    // Clear sessionStorage on page refresh/unload but only on the homepage
+    // Modified beforeunload handler - only clear session if there's no user input
     const handleBeforeUnload = () => {
-      if (location.pathname === "/") {
+      if (location.pathname === "/" && !hasUserInput) {
         sessionStorage.removeItem('current_session_id');
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [initialSessionId, routeSessionId, toast, location.pathname]);
+  }, [initialSessionId, routeSessionId, toast, location.pathname, hasUserInput]);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const processResponse = async (userMessage: string) => {
-    if (!sessionId) return;
+  // Create a real session in the database when needed
+  const ensureSessionExists = async (): Promise<string> => {
+    if (sessionId) {
+      return sessionId;
+    }
+    
+    // Create a new session in the database
+    const newSession = await createSession();
+    if (!newSession) {
+      throw new Error("Failed to create chat session");
+    }
+    
+    setSessionId(newSession.id);
+    sessionStorage.setItem('current_session_id', newSession.id);
+    
+    // Add welcome message to the database
+    const welcomeMessage = {
+      content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
+      isUser: false,
+      timestamp: new Date().toISOString(),
+    };
+    
+    await addMessage(newSession.id, welcomeMessage);
+    
+    return newSession.id;
+  };
 
+  const processResponse = async (userMessage: string) => {
     try {
       setIsLoading(true);
+      
+      // Ensure we have a valid session ID
+      const currentSessionId = await ensureSessionExists();
       
       // Convert chat messages to format expected by Gemini
       const geminiMessages: Message[] = messages.map(msg => ({
@@ -202,7 +223,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
         timestamp: new Date().toISOString(),
       };
       
-      const savedBotMessage = await addMessage(sessionId, newBotMessage);
+      const savedBotMessage = await addMessage(currentSessionId, newBotMessage);
       if (savedBotMessage) {
         setMessages(prevMessages => [...prevMessages, savedBotMessage]);
       }
@@ -239,7 +260,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!input.trim() || isLoading || !sessionId) return;
+    if (!input.trim() || isLoading) return;
+    
+    // Mark that user has provided input
+    setHasUserInput(true);
+    
+    // Ensure session exists in database
+    const currentSessionId = await ensureSessionExists();
     
     // Add user message to chat
     const userMessage = {
@@ -248,7 +275,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
       timestamp: new Date().toISOString(),
     };
     
-    const savedUserMessage = await addMessage(sessionId, userMessage);
+    const savedUserMessage = await addMessage(currentSessionId, userMessage);
     if (savedUserMessage) {
       setMessages(prevMessages => [...prevMessages, savedUserMessage]);
     }
