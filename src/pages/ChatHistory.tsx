@@ -7,12 +7,13 @@ import { getSessions, deleteSession } from '@/services/chatService';
 import { ChatSession } from '@/types/chat';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const ChatHistory: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -40,6 +41,12 @@ const ChatHistory: React.FC = () => {
       const success = await deleteSession(sessionId);
       
       if (success) {
+        // If we delete the current active session, remove it from sessionStorage
+        const currentSessionId = sessionStorage.getItem('current_session_id');
+        if (currentSessionId === sessionId) {
+          sessionStorage.removeItem('current_session_id');
+        }
+        
         setSessions(sessions.filter(session => session.id !== sessionId));
         
         toast({
@@ -61,6 +68,12 @@ const ChatHistory: React.FC = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleViewChat = (sessionId: string) => {
+    // Store the selected session ID before navigating
+    sessionStorage.setItem('current_session_id', sessionId);
+    navigate(`/chat/${sessionId}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -123,11 +136,14 @@ const ChatHistory: React.FC = () => {
                       Dibuat: {formatDate(session.created_at)}
                     </div>
                     
-                    <Link to={`/chat/${session.id}`}>
-                      <Button size="sm" variant="outline" className="text-nutrilokal-blue hover:text-nutrilokal-blue-dark">
-                        Lihat Percakapan
-                      </Button>
-                    </Link>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-nutrilokal-blue hover:text-nutrilokal-blue-dark"
+                      onClick={() => handleViewChat(session.id)}
+                    >
+                      Lihat Percakapan
+                    </Button>
                   </div>
                 </div>
               ))}

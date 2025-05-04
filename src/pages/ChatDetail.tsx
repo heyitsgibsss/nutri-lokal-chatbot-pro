@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,8 @@ const ChatDetail: React.FC = () => {
           const chatSession = await getSessionById(sessionId);
           if (chatSession) {
             setSession(chatSession);
+            // Store the current session ID in sessionStorage to keep track of it
+            sessionStorage.setItem('current_session_id', sessionId);
           } else {
             navigate('/chat-history');
           }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import {
 import { sendMessageToGemini } from '@/services/geminiService';
 import { Message } from '@/utils/types';
 import { sendWhatsAppNotification, getWhatsAppConfig } from '@/services/whatsappService';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 
 interface ChatInterfaceProps {
   initialSessionId?: string;
@@ -29,46 +30,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const location = useLocation();
 
   // Initialize chat session
   useEffect(() => {
     const initializeChat = async () => {
       setIsInitializing(true);
       try {
-        // If sessionId is provided, try to load that session
-        if (sessionId) {
-          const session = await getSessionById(sessionId);
+        // Check if this is a direct page load/refresh on the homepage
+        const isHomePageRefresh = location.pathname === "/" && !sessionStorage.getItem('current_session_id');
+        
+        // If sessionId is provided or we're on a chat detail page, try to load that session
+        if (sessionId || routeSessionId) {
+          const session = await getSessionById(sessionId || routeSessionId || '');
           if (session) {
-            const sessionMessages = await getSessionMessages(sessionId);
+            const sessionMessages = await getSessionMessages(session.id);
             setMessages(sessionMessages.map(msg => ({
               id: msg.id,
               content: msg.content,
               isUser: msg.is_user,
               timestamp: msg.timestamp
             })));
+            setSessionId(session.id);
+            sessionStorage.setItem('current_session_id', session.id);
             setIsInitializing(false);
             return;
           }
         }
         
-        // If no sessionId or session not found, create a new one
-        const sessions = await getSessions();
-        if (sessions.length > 0) {
-          // Use the most recent session
-          const mostRecent = sessions[0];
-          setSessionId(mostRecent.id);
-          const sessionMessages = await getSessionMessages(mostRecent.id);
-          setMessages(sessionMessages.map(msg => ({
-            id: msg.id,
-            content: msg.content,
-            isUser: msg.is_user,
-            timestamp: msg.timestamp
-          })));
-        } else {
+        // If homepage is refreshed or we have no session, create new session
+        if (isHomePageRefresh || !sessionStorage.getItem('current_session_id')) {
           // Create a new session
           const newSession = await createSession();
           if (newSession) {
             setSessionId(newSession.id);
+            sessionStorage.setItem('current_session_id', newSession.id);
             
             // Add welcome message
             if (newSession.id) {
@@ -90,6 +86,44 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
               variant: "destructive",
             });
           }
+        } else {
+          // If returning to homepage without refresh, try to load the last session
+          const storedSessionId = sessionStorage.getItem('current_session_id');
+          if (storedSessionId) {
+            const session = await getSessionById(storedSessionId);
+            if (session) {
+              const sessionMessages = await getSessionMessages(storedSessionId);
+              setMessages(sessionMessages.map(msg => ({
+                id: msg.id,
+                content: msg.content,
+                isUser: msg.is_user,
+                timestamp: msg.timestamp
+              })));
+              setSessionId(storedSessionId);
+            } else {
+              // Session not found, create new one
+              createNewSession();
+            }
+          } else {
+            // No stored session, use the most recent one
+            const sessions = await getSessions();
+            if (sessions.length > 0) {
+              // Use the most recent session
+              const mostRecent = sessions[0];
+              setSessionId(mostRecent.id);
+              sessionStorage.setItem('current_session_id', mostRecent.id);
+              const sessionMessages = await getSessionMessages(mostRecent.id);
+              setMessages(sessionMessages.map(msg => ({
+                id: msg.id,
+                content: msg.content,
+                isUser: msg.is_user,
+                timestamp: msg.timestamp
+              })));
+            } else {
+              // No sessions available, create new one
+              createNewSession();
+            }
+          }
         }
       } catch (error) {
         console.error('Error initializing chat:', error);
@@ -103,8 +137,40 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
       }
     };
 
+    const createNewSession = async () => {
+      const newSession = await createSession();
+      if (newSession) {
+        setSessionId(newSession.id);
+        sessionStorage.setItem('current_session_id', newSession.id);
+        
+        // Add welcome message
+        if (newSession.id) {
+          const welcomeMessage = {
+            content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
+            isUser: false,
+            timestamp: new Date().toISOString(),
+          };
+          
+          const savedMessage = await addMessage(newSession.id, welcomeMessage);
+          if (savedMessage) {
+            setMessages([savedMessage]);
+          }
+        }
+      }
+    };
+
     initializeChat();
-  }, [initialSessionId, routeSessionId, toast]);
+
+    // Clear sessionStorage on page refresh/unload but only on the homepage
+    const handleBeforeUnload = () => {
+      if (location.pathname === "/") {
+        sessionStorage.removeItem('current_session_id');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [initialSessionId, routeSessionId, toast, location.pathname]);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
