@@ -1,0 +1,171 @@
+
+import React, { useState, useEffect } from 'react';
+import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { getWhatsAppConfig, saveWhatsAppConfig } from '@/services/whatsappService';
+import { clearSessions } from '@/services/chatService';
+import { Loader2, Trash2 } from 'lucide-react';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import { WhatsAppConfig } from '@/types/chat';
+
+const Settings: React.FC = () => {
+  const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppConfig>({
+    enabled: false,
+    phoneNumber: '',
+    apiKey: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const config = getWhatsAppConfig();
+    setWhatsAppConfig(config);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      // Validate phone number format
+      if (whatsAppConfig.enabled && !whatsAppConfig.phoneNumber.match(/^\+[0-9]{10,15}$/)) {
+        toast({
+          title: "Format nomor tidak valid",
+          description: "Masukkan nomor WhatsApp dengan format yang benar (contoh: +628123456789)",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Save WhatsApp configuration
+      saveWhatsAppConfig(whatsAppConfig);
+      
+      toast({
+        title: "Pengaturan disimpan",
+        description: whatsAppConfig.enabled 
+          ? "Notifikasi WhatsApp telah diaktifkan" 
+          : "Notifikasi WhatsApp telah dinonaktifkan",
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Error",
+        description: "Gagal menyimpan pengaturan. Silakan coba lagi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClearHistory = () => {
+    if (confirm('Apakah Anda yakin ingin menghapus semua riwayat percakapan? Tindakan ini tidak dapat dibatalkan.')) {
+      clearSessions();
+      toast({
+        title: "Riwayat dihapus",
+        description: "Semua riwayat percakapan telah berhasil dihapus.",
+      });
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-green-50 to-blue-50">
+      <Header />
+      
+      <main className="container mx-auto px-4 py-6 flex-grow">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold mb-6 text-nutrilokal-blue-dark">Pengaturan</h1>
+          
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-medium mb-4 text-nutrilokal-green-dark">Notifikasi WhatsApp</h2>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="flex items-center space-x-2 mb-6">
+                <Switch
+                  checked={whatsAppConfig.enabled}
+                  onCheckedChange={(checked) => setWhatsAppConfig(prev => ({ ...prev, enabled: checked }))}
+                  id="whatsapp-enabled"
+                />
+                <Label htmlFor="whatsapp-enabled" className="text-gray-700">
+                  {whatsAppConfig.enabled ? 'Aktif' : 'Nonaktif'}
+                </Label>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone-number" className="text-gray-700">
+                    Nomor WhatsApp
+                  </Label>
+                  <Input
+                    id="phone-number"
+                    type="text"
+                    placeholder="+628123456789"
+                    value={whatsAppConfig.phoneNumber}
+                    onChange={(e) => setWhatsAppConfig(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                    disabled={!whatsAppConfig.enabled}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Masukkan nomor WhatsApp dengan kode negara (contoh: +62 untuk Indonesia)
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="api-key" className="text-gray-700">
+                    API Key (Opsional)
+                  </Label>
+                  <Input
+                    id="api-key"
+                    type="password"
+                    placeholder="Masukkan API key WhatsApp"
+                    value={whatsAppConfig.apiKey || ''}
+                    onChange={(e) => setWhatsAppConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                    disabled={!whatsAppConfig.enabled}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Diperlukan jika menggunakan WhatsApp Business API
+                  </p>
+                </div>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="mt-6 bg-nutrilokal-green hover:bg-nutrilokal-green-dark"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : 'Simpan Pengaturan'}
+              </Button>
+            </form>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-medium mb-4 text-nutrilokal-green-dark">Hapus Data</h2>
+            <p className="text-gray-600 mb-4">
+              Hapus semua data dan riwayat percakapan. Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <Button 
+              variant="destructive" 
+              onClick={handleClearHistory}
+              className="flex items-center"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Hapus Semua Riwayat
+            </Button>
+          </div>
+        </div>
+      </main>
+      
+      <Footer />
+    </div>
+  );
+};
+
+export default Settings;
