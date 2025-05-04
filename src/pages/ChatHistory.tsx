@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Trash2, MessageCircle } from 'lucide-react';
+import { Trash2, MessageCircle, Loader2 } from 'lucide-react';
 import { getSessions, deleteSession } from '@/services/chatService';
 import { ChatSession } from '@/types/chat';
 import Header from '@/components/Header';
@@ -11,25 +11,56 @@ import { Link } from 'react-router-dom';
 
 const ChatHistory: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadSessions = () => {
-      const savedSessions = getSessions();
-      setSessions(savedSessions);
+    const loadSessions = async () => {
+      setIsLoading(true);
+      try {
+        const savedSessions = await getSessions();
+        setSessions(savedSessions);
+      } catch (error) {
+        console.error('Error loading sessions:', error);
+        toast({
+          title: "Error",
+          description: "Gagal memuat riwayat percakapan.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadSessions();
-  }, []);
+  }, [toast]);
 
-  const handleDeleteSession = (sessionId: string) => {
-    deleteSession(sessionId);
-    setSessions(getSessions());
-    
-    toast({
-      title: "Percakapan dihapus",
-      description: "Riwayat percakapan telah berhasil dihapus.",
-    });
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      const success = await deleteSession(sessionId);
+      
+      if (success) {
+        setSessions(sessions.filter(session => session.id !== sessionId));
+        
+        toast({
+          title: "Percakapan dihapus",
+          description: "Riwayat percakapan telah berhasil dihapus.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Gagal menghapus percakapan.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast({
+        title: "Error",
+        description: "Gagal menghapus percakapan.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -51,7 +82,12 @@ const ChatHistory: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold mb-6 text-nutrilokal-blue-dark">Riwayat Percakapan</h1>
           
-          {sessions.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-10">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-nutrilokal-green" />
+              <p className="mt-2 text-gray-600">Memuat riwayat percakapan...</p>
+            </div>
+          ) : sessions.length === 0 ? (
             <div className="text-center py-10 bg-white rounded-lg shadow-sm border border-gray-200">
               <MessageCircle className="mx-auto h-12 w-12 text-gray-400 mb-3" />
               <h3 className="text-lg font-medium text-gray-800">Belum ada percakapan</h3>
@@ -79,16 +115,12 @@ const ChatHistory: React.FC = () => {
                   </div>
                   
                   <div className="text-gray-500 text-sm mb-3">
-                    {formatDate(session.updatedAt)}
-                  </div>
-                  
-                  <div className="text-gray-700 text-sm mb-4">
-                    {session.messages.length} pesan
+                    {formatDate(session.updated_at)}
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <div className="text-xs text-gray-500">
-                      Dibuat: {formatDate(session.createdAt)}
+                      Dibuat: {formatDate(session.created_at)}
                     </div>
                     
                     <Link to={`/chat/${session.id}`}>

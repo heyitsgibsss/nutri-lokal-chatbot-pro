@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { getSessionById } from '@/services/chatService';
 import { ChatSession } from '@/types/chat';
 import Header from '@/components/Header';
@@ -12,17 +12,30 @@ import ChatInterface from '@/components/ChatInterface';
 const ChatDetail: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [session, setSession] = useState<ChatSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (sessionId) {
-      const chatSession = getSessionById(sessionId);
-      if (chatSession) {
-        setSession(chatSession);
-      } else {
-        navigate('/chat-history');
+    const fetchSession = async () => {
+      if (sessionId) {
+        setIsLoading(true);
+        try {
+          const chatSession = await getSessionById(sessionId);
+          if (chatSession) {
+            setSession(chatSession);
+          } else {
+            navigate('/chat-history');
+          }
+        } catch (error) {
+          console.error('Error fetching session:', error);
+          navigate('/chat-history');
+        } finally {
+          setIsLoading(false);
+        }
       }
-    }
+    };
+
+    fetchSession();
   }, [sessionId, navigate]);
 
   return (
@@ -42,15 +55,25 @@ const ChatDetail: React.FC = () => {
               Kembali
             </Button>
             
-            {session && (
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <span>Memuat...</span>
+              </div>
+            ) : session && (
               <h1 className="text-xl font-bold text-nutrilokal-blue-dark">
                 {session.title}
               </h1>
             )}
           </div>
           
-          {session ? (
-            <ChatInterface />
+          {isLoading ? (
+            <div className="text-center py-8">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-nutrilokal-green" />
+              <p className="mt-2 text-gray-600">Memuat percakapan...</p>
+            </div>
+          ) : session ? (
+            <ChatInterface initialSessionId={sessionId} />
           ) : (
             <div className="text-center py-8">
               <p>Percakapan tidak ditemukan</p>

@@ -5,49 +5,105 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
-import { createSession, addMessage, getSessions } from '@/services/chatService';
+import { 
+  createSession, 
+  addMessage, 
+  getSessions, 
+  getSessionById, 
+  getSessionMessages 
+} from '@/services/chatService';
 import { sendWhatsAppNotification, getWhatsAppConfig } from '@/services/whatsappService';
+import { useParams } from 'react-router-dom';
 
-const ChatInterface: React.FC = () => {
+interface ChatInterfaceProps {
+  initialSessionId?: string;
+}
+
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
+  const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState('');
+  const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId || routeSessionId);
+  const [isInitializing, setIsInitializing] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Initialize a new chat session if none exists
+  // Initialize chat session
   useEffect(() => {
-    if (!sessionId) {
-      const sessions = getSessions();
-      // If there are existing sessions, use the most recent one
-      if (sessions.length > 0) {
-        const mostRecent = sessions[0];
-        setSessionId(mostRecent.id);
-        setMessages(mostRecent.messages);
-      } else {
-        // Otherwise create a new session
-        const newSession = createSession();
-        setSessionId(newSession.id);
+    const initializeChat = async () => {
+      setIsInitializing(true);
+      try {
+        // If sessionId is provided, try to load that session
+        if (sessionId) {
+          const session = await getSessionById(sessionId);
+          if (session) {
+            const sessionMessages = await getSessionMessages(sessionId);
+            setMessages(sessionMessages.map(msg => ({
+              id: msg.id,
+              content: msg.content,
+              isUser: msg.is_user,
+              timestamp: msg.timestamp
+            })));
+            setIsInitializing(false);
+            return;
+          }
+        }
         
-        // Add welcome message
-        const welcomeMessage: ChatMessage = {
-          id: '1',
-          content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
-          isUser: false,
-          timestamp: new Date().toISOString(),
-        };
-        
-        addMessage(newSession.id, {
-          content: welcomeMessage.content,
-          isUser: welcomeMessage.isUser,
-          timestamp: welcomeMessage.timestamp,
+        // If no sessionId or session not found, create a new one
+        const sessions = await getSessions();
+        if (sessions.length > 0) {
+          // Use the most recent session
+          const mostRecent = sessions[0];
+          setSessionId(mostRecent.id);
+          const sessionMessages = await getSessionMessages(mostRecent.id);
+          setMessages(sessionMessages.map(msg => ({
+            id: msg.id,
+            content: msg.content,
+            isUser: msg.is_user,
+            timestamp: msg.timestamp
+          })));
+        } else {
+          // Create a new session
+          const newSession = await createSession();
+          if (newSession) {
+            setSessionId(newSession.id);
+            
+            // Add welcome message
+            if (newSession.id) {
+              const welcomeMessage = {
+                content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
+                isUser: false,
+                timestamp: new Date().toISOString(),
+              };
+              
+              const savedMessage = await addMessage(newSession.id, welcomeMessage);
+              if (savedMessage) {
+                setMessages([savedMessage]);
+              }
+            }
+          } else {
+            toast({
+              title: "Error",
+              description: "Tidak dapat membuat sesi chat baru.",
+              variant: "destructive",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+        toast({
+          title: "Error",
+          description: "Terjadi kesalahan saat memuat data chat.",
+          variant: "destructive",
         });
-        
-        setMessages([welcomeMessage]);
+      } finally {
+        setIsInitializing(false);
       }
-    }
-  }, []);
+    };
+
+    initializeChat();
+  }, [initialSessionId, routeSessionId, toast]);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
@@ -55,6 +111,8 @@ const ChatInterface: React.FC = () => {
   }, [messages]);
 
   const processResponse = async (userMessage: string) => {
+    if (!sessionId) return;
+
     try {
       setIsLoading(true);
       
@@ -81,14 +139,16 @@ const ChatInterface: React.FC = () => {
       }
       
       // Add bot response to chat
-      const newBotMessage: Omit<ChatMessage, 'id'> = {
+      const newBotMessage = {
         content: botResponse,
         isUser: false,
         timestamp: new Date().toISOString(),
       };
       
-      const savedBotMessage = addMessage(sessionId, newBotMessage);
-      setMessages(prevMessages => [...prevMessages, savedBotMessage]);
+      const savedBotMessage = await addMessage(sessionId, newBotMessage);
+      if (savedBotMessage) {
+        setMessages(prevMessages => [...prevMessages, savedBotMessage]);
+      }
       
       // Send WhatsApp notification via Fonnte if enabled
       const whatsappConfig = getWhatsAppConfig();
@@ -122,17 +182,19 @@ const ChatInterface: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !sessionId) return;
     
     // Add user message to chat
-    const userMessage: Omit<ChatMessage, 'id'> = {
+    const userMessage = {
       content: input,
       isUser: true,
       timestamp: new Date().toISOString(),
     };
     
-    const savedUserMessage = addMessage(sessionId, userMessage);
-    setMessages(prevMessages => [...prevMessages, savedUserMessage]);
+    const savedUserMessage = await addMessage(sessionId, userMessage);
+    if (savedUserMessage) {
+      setMessages(prevMessages => [...prevMessages, savedUserMessage]);
+    }
     
     const userInput = input;
     setInput('');
@@ -140,6 +202,15 @@ const ChatInterface: React.FC = () => {
     // Process the message and get a response
     await processResponse(userInput);
   };
+
+  if (isInitializing) {
+    return (
+      <div className="bg-white rounded-lg shadow-md h-[500px] max-h-[500px] flex flex-col border border-gray-200 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-nutrilokal-green" />
+        <p className="mt-2 text-gray-600">Memuat percakapan...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-md h-[500px] max-h-[500px] flex flex-col border border-gray-200">
