@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ChatMessage, ChatSession } from "@/types/chat";
 
@@ -87,7 +86,15 @@ export const getSessionMessages = async (sessionId: string): Promise<ChatMessage
       return [];
     }
     
-    return messages;
+    // Transform to match our app's ChatMessage structure
+    return messages.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      isUser: msg.is_user,
+      timestamp: msg.timestamp,
+      session_id: msg.session_id,
+      is_user: msg.is_user
+    }));
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];
