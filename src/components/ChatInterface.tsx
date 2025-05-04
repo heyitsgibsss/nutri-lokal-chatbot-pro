@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,8 @@ import {
   getSessionById, 
   getSessionMessages 
 } from '@/services/chatService';
+import { sendMessageToGemini } from '@/services/geminiService';
+import { Message } from '@/utils/types';
 import { sendWhatsAppNotification, getWhatsAppConfig } from '@/services/whatsappService';
 import { useParams } from 'react-router-dom';
 
@@ -116,27 +117,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
     try {
       setIsLoading(true);
       
-      // Here you would typically make an API call to your chatbot service
-      // For this example, we'll simulate a response after a short delay
+      // Convert chat messages to format expected by Gemini
+      const geminiMessages: Message[] = messages.map(msg => ({
+        role: msg.isUser ? "user" : "assistant",
+        content: msg.content
+      }));
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Add the new user message
+      geminiMessages.push({ role: "user", content: userMessage });
       
-      // Sample responses based on keywords in the user's message
-      let botResponse = '';
-      const lowerCaseMessage = userMessage.toLowerCase();
-      
-      if (lowerCaseMessage.includes('tempe')) {
-        botResponse = 'Tempe adalah sumber protein nabati yang sangat baik. Mengandung 18-20g protein per 100g dan kaya akan antioksidan, vitamin B, dan mineral seperti zat besi dan kalsium.';
-      } else if (lowerCaseMessage.includes('kangkung')) {
-        botResponse = 'Kangkung kaya akan zat besi, vitamin A, C, dan mineral lainnya. Sangat baik untuk mencegah anemia dan menjaga kesehatan mata.';
-      } else if (lowerCaseMessage.includes('ubi')) {
-        botResponse = 'Ubi jalar, terutama yang berwarna oranye, kaya akan beta-karoten (provitamin A) yang penting untuk kesehatan mata. Juga mengandung serat dan vitamin C yang baik untuk pencernaan.';
-      } else if (lowerCaseMessage.includes('gizi') || lowerCaseMessage.includes('nutrisi')) {
-        botResponse = 'Pola gizi seimbang meliputi karbohidrat 50-60%, protein 15-20%, dan lemak 25-30% dari total kalori harian. Pangan lokal Indonesia sangat beragam dan dapat memenuhi kebutuhan gizi ini.';
-      } else {
-        botResponse = 'Terima kasih atas pertanyaan Anda. Pangan lokal Indonesia sangat beragam dan kaya nutrisi. Anda bisa bertanya lebih spesifik tentang jenis makanan tertentu, nilai gizinya, atau kebutuhan nutrisi harian.';
-      }
+      // Get response from Gemini API
+      const botResponse = await sendMessageToGemini(geminiMessages);
       
       // Add bot response to chat
       const newBotMessage = {
