@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, WhatsApp } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
 import { 
   createSession, 
@@ -14,7 +14,12 @@ import {
 } from '@/services/chatService';
 import { sendMessageToGemini } from '@/services/geminiService';
 import { Message } from '@/utils/types';
-import { sendWhatsAppNotification, getWhatsAppConfig, formatRecipeForWhatsApp } from '@/services/whatsappService';
+import { 
+  sendWhatsAppNotification, 
+  getWhatsAppConfig, 
+  formatRecipeForWhatsApp,
+  sendRecipeToWhatsApp
+} from '@/services/whatsappService';
 import { useParams, useLocation } from 'react-router-dom';
 
 interface ChatInterfaceProps {
@@ -29,6 +34,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
   const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId || routeSessionId);
   const [isInitializing, setIsInitializing] = useState(true);
   const [hasUserInput, setHasUserInput] = useState(false); // Track if the user has sent any messages
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const location = useLocation();
@@ -44,7 +50,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
           // Create temporary welcome message (not saved to DB yet)
           const welcomeMessage = {
             id: `temp-${Date.now()}`,
-            content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
+            content: 'Selamat datang di NutriLokal! Berikut adalah beberapa rekomendasi makanan sehat dan terjangkau:\n\n1. Pepes Tahu dan Sayuran\n   - Benefits: Tinggi protein nabati, serat, dan mineral\n   - Bahan-bahan:\n     1. 5 buah tahu putih\n     2. 1 ikat bayam, cuci dan potong\n     3. 1 buah wortel, parut\n     4. 2 butir telur\n     5. Bumbu: bawang merah, bawang putih, ketumbar, garam secukupnya\n   - Langkah-langkah:\n     1. Hancurkan tahu, campurkan dengan sayuran dan bumbu\n     2. Tambahkan telur, aduk rata\n     3. Bungkus dengan daun pisang dan kukus selama 20 menit\n\n2. Bubur Kacang Hijau Ubi Oranye\n   - Benefits: Kaya serat, vitamin A, dan energi berkelanjutan\n   - Bahan-bahan:\n     1. 100g kacang hijau\n     2. 1 ubi oranye ukuran sedang\n     3. Gula aren secukupnya\n     4. 1 lembar daun pandan\n   - Langkah-langkah:\n     1. Rendam kacang hijau selama 2 jam\n     2. Rebus kacang hijau dengan daun pandan hingga empuk\n     3. Tambahkan ubi yang sudah dipotong dadu\n     4. Tambahkan gula aren, aduk hingga larut\n\nSilakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
             isUser: false,
             timestamp: new Date().toISOString(),
           };
@@ -114,9 +120,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
     setSessionId(newSession.id);
     sessionStorage.setItem('current_session_id', newSession.id);
     
-    // Add welcome message to the database
+    // Add welcome message to the database with the new healthy food recommendations
     const welcomeMessage = {
-      content: 'Selamat datang di NutriLokal! Silakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
+      content: 'Selamat datang di NutriLokal! Berikut adalah beberapa rekomendasi makanan sehat dan terjangkau:\n\n1. Pepes Tahu dan Sayuran\n   - Benefits: Tinggi protein nabati, serat, dan mineral\n   - Bahan-bahan:\n     1. 5 buah tahu putih\n     2. 1 ikat bayam, cuci dan potong\n     3. 1 buah wortel, parut\n     4. 2 butir telur\n     5. Bumbu: bawang merah, bawang putih, ketumbar, garam secukupnya\n   - Langkah-langkah:\n     1. Hancurkan tahu, campurkan dengan sayuran dan bumbu\n     2. Tambahkan telur, aduk rata\n     3. Bungkus dengan daun pisang dan kukus selama 20 menit\n\n2. Bubur Kacang Hijau Ubi Oranye\n   - Benefits: Kaya serat, vitamin A, dan energi berkelanjutan\n   - Bahan-bahan:\n     1. 100g kacang hijau\n     2. 1 ubi oranye ukuran sedang\n     3. Gula aren secukupnya\n     4. 1 lembar daun pandan\n   - Langkah-langkah:\n     1. Rendam kacang hijau selama 2 jam\n     2. Rebus kacang hijau dengan daun pandan hingga empuk\n     3. Tambahkan ubi yang sudah dipotong dadu\n     4. Tambahkan gula aren, aduk hingga larut\n\nSilakan tanyakan tentang pangan lokal atau kebutuhan gizi Anda.',
       isUser: false,
       timestamp: new Date().toISOString(),
     };
@@ -238,6 +244,54 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
     await processResponse(userInput);
   };
 
+  // Handle sending message to WhatsApp
+  const handleSendToWhatsApp = async (messageContent: string) => {
+    const whatsappConfig = getWhatsAppConfig();
+    
+    if (!whatsappConfig.enabled || 
+        !whatsappConfig.phoneNumber || 
+        !whatsappConfig.apiKey) {
+      toast({
+        title: "WhatsApp tidak dikonfigurasi",
+        description: "Silakan atur konfigurasi WhatsApp di halaman pengaturan terlebih dahulu.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSendingWhatsApp(true);
+    
+    try {
+      const sent = await sendRecipeToWhatsApp(
+        messageContent,
+        whatsappConfig.phoneNumber,
+        whatsappConfig.apiKey
+      );
+      
+      if (sent) {
+        toast({
+          title: "Berhasil",
+          description: "Resep berhasil dikirim ke WhatsApp Anda.",
+        });
+      } else {
+        toast({
+          title: "Gagal",
+          description: "Gagal mengirim resep ke WhatsApp. Periksa konfigurasi Anda.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat mengirim ke WhatsApp.",
+        variant: "destructive",
+      });
+      console.error('WhatsApp send error:', error);
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
+
   if (isInitializing) {
     return (
       <div className="bg-white rounded-lg shadow-md h-[500px] max-h-[500px] flex flex-col border border-gray-200 items-center justify-center">
@@ -250,25 +304,49 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
   return (
     <div className="bg-white rounded-lg shadow-md h-[500px] max-h-[500px] flex flex-col border border-gray-200">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <div 
             key={message.id} 
             className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
           >
-            <div 
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                message.isUser 
-                  ? 'bg-nutrilokal-blue text-white' 
-                  : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              {message.content}
-              <div className={`text-xs mt-1 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
-                {new Date(message.timestamp).toLocaleTimeString('id-ID', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
+            <div className="flex flex-col">
+              <div 
+                className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                  message.isUser 
+                    ? 'bg-nutrilokal-blue text-white ml-auto' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {message.content}
+                <div className={`text-xs mt-1 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
+                  {new Date(message.timestamp).toLocaleTimeString('id-ID', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
               </div>
+              
+              {/* WhatsApp button for assistant messages that contain recipes */}
+              {!message.isUser && 
+               (message.content.toLowerCase().includes('resep') || 
+                message.content.toLowerCase().includes('bahan-bahan') ||
+                message.content.toLowerCase().includes('langkah-langkah') ||
+                index === 0) && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="mt-2 w-fit flex gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                  onClick={() => handleSendToWhatsApp(message.content)}
+                  disabled={isSendingWhatsApp}
+                >
+                  {isSendingWhatsApp ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <WhatsApp className="h-4 w-4" />
+                  )}
+                  Kirim Resep ke WhatsApp
+                </Button>
+              )}
             </div>
           </div>
         ))}

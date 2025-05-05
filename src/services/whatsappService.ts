@@ -65,7 +65,7 @@ export const sendWhatsAppNotification = async (
     // Format phone number if needed (remove '+' as Fonnte may not need it)
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
     
-    // Call Fonnte API
+    // Call Fonnte API with the new format
     const response = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
@@ -86,6 +86,42 @@ export const sendWhatsAppNotification = async (
     
   } catch (error) {
     console.error('Error sending WhatsApp notification via Fonnte:', error);
+    return false;
+  }
+};
+
+// Send recipe directly to WhatsApp
+export const sendRecipeToWhatsApp = async (
+  recipe: string,
+  phoneNumber: string,
+  apiKey: string
+): Promise<boolean> => {
+  try {
+    if (!apiKey || !phoneNumber) {
+      return false;
+    }
+    
+    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
+    
+    // Format recipe message
+    const formattedMessage = `*NutriLokal: Resep Makanan Indonesia*\n\n${recipe}`;
+    
+    const response = await fetch('https://api.fonnte.com/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        target: formattedPhone,
+        message: formattedMessage
+      })
+    });
+    
+    const data = await response.json();
+    return data && data.status === true;
+  } catch (error) {
+    console.error('Error sending recipe to WhatsApp:', error);
     return false;
   }
 };
