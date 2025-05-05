@@ -14,6 +14,9 @@ export const getWhatsAppConfig = (): WhatsAppConfig => {
   const config = localStorage.getItem(WHATSAPP_CONFIG_KEY);
   return config ? JSON.parse(config) : {
     enabled: false,
+    phoneNumber: '+682195759381',
+    apiKey: '1MHmjzzcuvq7qEbhY8dUn2wR3vEz91PkbEvsfC',
+    provider: 'fonnte',
     phoneNumber: '+6282195759381', // Default phone number provided by user
     apiKey: '1MHmjzzcuvq7qEbhY8dUn2wR3vEz91PkbEvsfC', // Default API key provided by user
     provider: 'fonnte',
