@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { getWhatsAppConfig, saveWhatsAppConfig } from '@/services/whatsappService';
+import { getWhatsAppConfig, saveWhatsAppConfig, testFonnteConnection } from '@/services/whatsappService';
 import { clearSessions } from '@/services/chatService';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { WhatsAppConfig } from '@/types/chat';
@@ -17,9 +17,12 @@ const Settings: React.FC = () => {
     enabled: false,
     phoneNumber: '',
     apiKey: '',
-    provider: 'fonnte'
+    provider: 'fonnte',
+    deviceToken: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -72,6 +75,49 @@ const Settings: React.FC = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    setConnectionStatus('idle');
+    
+    try {
+      if (!whatsAppConfig.apiKey) {
+        toast({
+          title: "API Key diperlukan",
+          description: "Masukkan API Key Fonnte untuk menguji koneksi",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const isConnected = await testFonnteConnection(whatsAppConfig.apiKey);
+      
+      if (isConnected) {
+        setConnectionStatus('success');
+        toast({
+          title: "Koneksi berhasil",
+          description: "Koneksi ke Fonnte WhatsApp API berhasil",
+        });
+      } else {
+        setConnectionStatus('error');
+        toast({
+          title: "Koneksi gagal",
+          description: "Gagal terhubung ke Fonnte WhatsApp API. Pastikan API key valid.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      setConnectionStatus('error');
+      console.error('Error testing connection:', error);
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menguji koneksi. Silakan coba lagi.",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingConnection(false);
     }
   };
 
@@ -141,6 +187,42 @@ const Settings: React.FC = () => {
                   <p className="text-xs text-gray-500">
                     Dapatkan API key dari dashboard <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-nutrilokal-blue hover:underline">Fonnte</a>
                   </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="device-token" className="text-gray-700">
+                    Token Device Fonnte
+                  </Label>
+                  <Input
+                    id="device-token"
+                    type="text"
+                    placeholder="Masukkan token device Fonnte Anda"
+                    value={whatsAppConfig.deviceToken || ''}
+                    onChange={(e) => setWhatsAppConfig(prev => ({ ...prev, deviceToken: e.target.value }))}
+                    disabled={!whatsAppConfig.enabled}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Token device untuk akun Fonnte Anda
+                  </p>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    className="mt-2"
+                    onClick={handleTestConnection}
+                    disabled={testingConnection || !whatsAppConfig.apiKey}
+                  >
+                    {testingConnection ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : connectionStatus === 'success' ? (
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                    ) : connectionStatus === 'error' ? (
+                      <AlertCircle className="mr-2 h-4 w-4 text-red-500" />
+                    ) : null}
+                    Uji Koneksi
+                  </Button>
                 </div>
                 
                 <div className="p-4 bg-green-50 rounded-md border border-green-100">

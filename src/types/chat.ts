@@ -20,5 +20,5 @@ export interface WhatsAppConfig {
   phoneNumber: string;
   apiKey: string;
   provider: 'fonnte';
-  deviceToken?: string;
+  deviceToken: string; // Added device token field
 }

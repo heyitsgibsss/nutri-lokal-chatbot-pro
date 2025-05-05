@@ -2,7 +2,7 @@
 import { WhatsAppConfig } from "@/types/chat";
 
 const WHATSAPP_CONFIG_KEY = 'nutrilokal-whatsapp-config';
-const DEFAULT_DEVICE_TOKEN = 'Rs3jgVypgwVVAQAFnzbR'; // Default Fonnte device token
+const DEFAULT_DEVICE_TOKEN = 'Rs3jgVypgwVVAQAFnzbR'; // Default Fonnte device token from the user
 
 // Save WhatsApp config to localStorage
 export const saveWhatsAppConfig = (config: WhatsAppConfig): void => {
@@ -14,8 +14,8 @@ export const getWhatsAppConfig = (): WhatsAppConfig => {
   const config = localStorage.getItem(WHATSAPP_CONFIG_KEY);
   return config ? JSON.parse(config) : {
     enabled: false,
-    phoneNumber: '',
-    apiKey: '',
+    phoneNumber: '+6282195759381', // Default phone number provided by user
+    apiKey: '1MHmjzzcuvq7qEbhY8dUn2wR3vEz91PkbEvsfC', // Default API key provided by user
     provider: 'fonnte',
     deviceToken: DEFAULT_DEVICE_TOKEN
   };
@@ -43,7 +43,7 @@ export const formatRecipeForWhatsApp = (recipeName: string, content: string): st
   return `*NutriLokal: Resep Makanan Indonesia*\n\n${content}`;
 };
 
-// Send WhatsApp notification via Fonnte API
+// Send WhatsApp notification via Fonnte API using the proper format
 export const sendWhatsAppNotification = async (
   message: string,
   phoneNumber: string,
@@ -67,7 +67,7 @@ export const sendWhatsAppNotification = async (
     // Format phone number if needed (remove '+' as Fonnte may not need it)
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
     
-    // Use data array format as shown in the example
+    // Use data array format as shown in the user provided example
     const response = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
