@@ -1,21 +1,18 @@
 
+// Chat message interfaces
 export interface ChatMessage {
-  id: string;
+  id?: string;
   content: string;
   isUser: boolean;
   timestamp: string;
-  session_id?: string;
-  is_user?: boolean; // Database field name
+  imageUrl?: string; // Added for image messages
 }
 
 export interface ChatSession {
   id: string;
-  title: string;
-  messages?: ChatMessage[];
+  name: string;
   created_at: string;
-  updated_at: string;
-  createdAt?: string; // For backward compatibility
-  updatedAt?: string; // For backward compatibility
+  preview: string;
 }
 
 export interface WhatsAppConfig {
@@ -23,4 +20,5 @@ export interface WhatsAppConfig {
   phoneNumber: string;
   apiKey: string;
   provider: 'fonnte';
+  deviceToken?: string;
 }

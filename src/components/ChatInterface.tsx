@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Send, MessageSquare } from 'lucide-react';
+import { Loader2, Send, MessageSquare, Camera, Image, X } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
 import { 
   createSession, 
@@ -11,7 +11,10 @@ import {
   getSessionById, 
   getSessionMessages 
 } from '@/services/chatService';
-import { sendMessageToGemini } from '@/services/geminiService';
+import { 
+  sendMessageToGemini, 
+  sendImageToGemini 
+} from '@/services/geminiService';
 import { Message } from '@/utils/types';
 import { 
   sendWhatsAppNotification, 
@@ -34,7 +37,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [hasUserInput, setHasUserInput] = useState(false); // Track if the user has sent any messages
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const location = useLocation();
   const isHomePage = location.pathname === "/";
@@ -131,6 +137,114 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
     return newSession.id;
   };
 
+  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Check if file is an image
+    if (!file.type.match('image.*')) {
+      toast({
+        title: "Error",
+        description: "Hanya file gambar yang diperbolehkan.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Ukuran gambar terlalu besar (maks 5MB).",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSelectedImage(file);
+    
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const triggerImageUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const processImageResponse = async (file: File) => {
+    try {
+      setIsLoading(true);
+      
+      // Ensure we have a valid session ID
+      const currentSessionId = await ensureSessionExists();
+      
+      // Create a placeholder message to show the image being sent
+      const userMessage = {
+        content: "[Gambar makanan dikirim]",
+        isUser: true,
+        timestamp: new Date().toISOString(),
+        imageUrl: URL.createObjectURL(file)
+      };
+      
+      const savedUserMessage = await addMessage(currentSessionId, userMessage);
+      if (savedUserMessage) {
+        setMessages(prevMessages => [...prevMessages, savedUserMessage]);
+      }
+      
+      // Convert the image to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      
+      reader.onloadend = async () => {
+        const base64Image = reader.result as string;
+        
+        // Get response from Gemini API
+        const botResponse = await sendImageToGemini(base64Image);
+        
+        // Add bot response to chat
+        const newBotMessage = {
+          content: botResponse,
+          isUser: false,
+          timestamp: new Date().toISOString(),
+        };
+        
+        const savedBotMessage = await addMessage(currentSessionId, newBotMessage);
+        if (savedBotMessage) {
+          setMessages(prevMessages => [...prevMessages, savedBotMessage]);
+        }
+        
+        setIsLoading(false);
+      };
+      
+      // Clear the image after sending
+      clearSelectedImage();
+      
+    } catch (error) {
+      console.error('Error processing image response:', error);
+      toast({
+        title: "Error",
+        description: "Gagal menganalisa gambar. Silakan coba lagi.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      clearSelectedImage();
+    }
+  };
+
   const processResponse = async (userMessage: string) => {
     try {
       setIsLoading(true);
@@ -215,6 +329,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If there's an image selected, process it instead of text
+    if (selectedImage) {
+      await processImageResponse(selectedImage);
+      return;
+    }
     
     if (!input.trim() || isLoading) return;
     
@@ -316,6 +436,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
                     : 'bg-gray-100 text-gray-800'
                 }`}
               >
+                {/* Show image if the message has an imageUrl */}
+                {message.imageUrl && (
+                  <div className="mb-2">
+                    <img 
+                      src={message.imageUrl} 
+                      alt="Uploaded food" 
+                      className="max-w-full rounded-lg" 
+                    />
+                  </div>
+                )}
+                
                 {message.content}
                 <div className={`text-xs mt-1 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
                   {new Date(message.timestamp).toLocaleTimeString('id-ID', { 
@@ -361,29 +492,75 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
         )}
       </div>
       
-      <form onSubmit={handleSubmit} className="border-t border-gray-200 p-4 flex">
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Tulis pertanyaan Anda di sini..."
-          className="flex-grow min-h-[50px] resize-none"
-          maxLength={500}
-          disabled={isLoading}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              if (input.trim()) handleSubmit(e);
-            }
-          }}
-        />
-        <Button 
-          type="submit" 
-          size="icon" 
-          className="ml-2 bg-nutrilokal-green hover:bg-nutrilokal-green-dark"
-          disabled={isLoading || !input.trim()}
-        >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
+      <form onSubmit={handleSubmit} className="border-t border-gray-200 p-4">
+        {/* Image preview area */}
+        {imagePreview && (
+          <div className="mb-3 relative">
+            <div className="relative inline-block">
+              <img 
+                src={imagePreview} 
+                alt="Preview" 
+                className="h-16 rounded-md" 
+              />
+              <button
+                type="button"
+                onClick={clearSelectedImage}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-sm hover:bg-red-600"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        )}
+      
+        <div className="flex items-center">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          
+          {/* Camera/Image upload button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={triggerImageUpload}
+            className="mr-2"
+            disabled={isLoading}
+          >
+            <Image className="h-4 w-4" />
+          </Button>
+          
+          {/* Text input */}
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Tulis pertanyaan Anda di sini..."
+            className="flex-grow min-h-[50px] resize-none"
+            maxLength={500}
+            disabled={isLoading}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (input.trim() || selectedImage) handleSubmit(e);
+              }
+            }}
+          />
+          
+          {/* Send button */}
+          <Button 
+            type="submit" 
+            size="icon" 
+            className="ml-2 bg-nutrilokal-green hover:bg-nutrilokal-green-dark"
+            disabled={isLoading || (!input.trim() && !selectedImage)}
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
       </form>
     </div>
   );

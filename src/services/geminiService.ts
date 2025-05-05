@@ -50,7 +50,33 @@ Each numbered point must start on a new line. For example:
 
 Use this numbered format for recipes, nutritional facts, health tips, and other information to make it easier for users to follow.
 
+IMAGE ANALYSIS TASK: If the user sends an image, your job is to:
+1. Identify if the image contains food. If it doesn't look like food, respond with: "Maaf, saya tidak bisa menganalisa gambar yang bukan makanan. Silakan unggah gambar makanan untuk mendapatkan informasi gizi."
+2. If it is food, identify the food in the image and provide:
+   - The name of the dish (in Indonesian if possible)
+   - Nutritional benefits and approximate nutritional content (calories, protein, carbs, fats)
+   - Ingredients commonly found in the dish
+   - Health benefits and considerations
+   - Ways to make it healthier if applicable
+
 Important: Do not use asterisks (*) for formatting in your responses. Use plain text instead.`;
+
+// System prompt specifically for image analysis
+const IMAGE_SYSTEM_PROMPT = `You are NutriLokal, a nutritional expert chatbot specialized in Indonesian local foods.
+
+You are analyzing a food image. Your task is to:
+1. Identify if the image contains food. If it doesn't appear to be food, respond with: "Maaf, saya tidak bisa menganalisa gambar yang bukan makanan. Silakan unggah gambar makanan untuk mendapatkan informasi gizi."
+
+2. If it is food, provide the following analysis:
+   - The name of the dish (in Indonesian if possible)
+   - Nutritional benefits and approximate nutritional content (calories, protein, carbs, fats)
+   - Ingredients commonly found in the dish
+   - Health benefits and considerations
+   - Ways to make it healthier if applicable
+
+Format your response clearly with headings and numbered points where appropriate. Provide accurate nutritional information based on what you can identify in the image.
+
+Only analyze food content. For non-food images, politely explain that you can only analyze food images.`;
 
 export async function sendMessageToGemini(messages: Message[]): Promise<string> {
   try {
@@ -102,5 +128,60 @@ export async function sendMessageToGemini(messages: Message[]): Promise<string> 
   } catch (error) {
     console.error("Error sending message to Gemini:", error);
     return "I encountered an error while processing your request. Please try again later.";
+  }
+}
+
+export async function sendImageToGemini(base64Image: string): Promise<string> {
+  try {
+    // Extract base64 data (remove data:image/jpeg;base64, part)
+    const base64Data = base64Image.split(',')[1];
+    
+    // Create request with image
+    const requestBody = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: IMAGE_SYSTEM_PROMPT },
+            {
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: base64Data
+              }
+            },
+            { text: "Tolong analisa makanan dalam gambar ini dan berikan informasi nutrisinya." }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 1024,
+      }
+    };
+    
+    const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Gemini API error for image analysis:", errorData);
+      throw new Error(`Error communicating with Gemini for image analysis: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Extract the response text
+    let responseText = data.candidates[0]?.content?.parts[0]?.text || 
+      "Maaf, saya tidak bisa menganalisa gambar tersebut. Silakan coba gambar makanan yang lain.";
+    
+    return responseText;
+  } catch (error) {
+    console.error("Error analyzing image with Gemini:", error);
+    return "Maaf, terjadi kesalahan saat menganalisa gambar. Silakan coba lagi nanti.";
   }
 }
