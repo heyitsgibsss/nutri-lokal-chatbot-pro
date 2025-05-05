@@ -19,6 +19,28 @@ export const getWhatsAppConfig = (): WhatsAppConfig => {
   };
 };
 
+// Format recipe content for WhatsApp notification
+export const formatRecipeForWhatsApp = (recipeName: string, content: string): string => {
+  // Extract just the recipe part of a longer message if it exists
+  let recipeContent = content;
+  
+  // Look for recipe headers in the content
+  const recipeMarkers = [
+    'Resep 1:', 'Resep 2:', 'Resep 3:', 'Resep:', 'Bahan-bahan:', 'Cara membuat:'
+  ];
+  
+  // Find if the content contains recipe sections
+  for (const marker of recipeMarkers) {
+    if (content.includes(marker)) {
+      // We found a recipe section, use the original content
+      return `*NutriLokal: Resep Makanan Indonesia*\n\n${recipeName}\n\n${content}`;
+    }
+  }
+  
+  // If no specific recipe markers found, just send the content as is
+  return `*NutriLokal: Resep Makanan Indonesia*\n\n${content}`;
+};
+
 // Send WhatsApp notification via Fonnte API
 export const sendWhatsAppNotification = async (
   message: string,

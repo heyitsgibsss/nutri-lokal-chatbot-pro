@@ -60,7 +60,7 @@ const Settings: React.FC = () => {
       toast({
         title: "Pengaturan disimpan",
         description: whatsAppConfig.enabled 
-          ? "Notifikasi WhatsApp melalui Fonnte telah diaktifkan" 
+          ? "Notifikasi WhatsApp resep makanan melalui Fonnte telah diaktifkan" 
           : "Notifikasi WhatsApp telah dinonaktifkan",
       });
     } catch (error) {
@@ -94,7 +94,7 @@ const Settings: React.FC = () => {
           <h1 className="text-2xl font-bold mb-6 text-nutrilokal-blue-dark">Pengaturan</h1>
           
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 className="text-lg font-medium mb-4 text-nutrilokal-green-dark">Notifikasi WhatsApp (Fonnte)</h2>
+            <h2 className="text-lg font-medium mb-4 text-nutrilokal-green-dark">Notifikasi Resep Makanan via WhatsApp (Fonnte)</h2>
             
             <form onSubmit={handleSubmit}>
               <div className="flex items-center space-x-2 mb-6">
@@ -140,6 +140,14 @@ const Settings: React.FC = () => {
                   />
                   <p className="text-xs text-gray-500">
                     Dapatkan API key dari dashboard <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-nutrilokal-blue hover:underline">Fonnte</a>
+                  </p>
+                </div>
+                
+                <div className="p-4 bg-green-50 rounded-md border border-green-100">
+                  <h3 className="font-medium text-green-800 mb-2">Tentang Notifikasi Resep Makanan</h3>
+                  <p className="text-sm text-green-700">
+                    Setelah aktif, Anda akan menerima pesan WhatsApp dengan resep makanan setiap kali ada 
+                    pertanyaan tentang resep makanan atau nutrisi. Pesan akan diformat khusus agar mudah dibaca.
                   </p>
                 </div>
               </div>

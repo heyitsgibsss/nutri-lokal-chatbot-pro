@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send } from 'lucide-react';
@@ -14,7 +14,7 @@ import {
 } from '@/services/chatService';
 import { sendMessageToGemini } from '@/services/geminiService';
 import { Message } from '@/utils/types';
-import { sendWhatsAppNotification, getWhatsAppConfig } from '@/services/whatsappService';
+import { sendWhatsAppNotification, getWhatsAppConfig, formatRecipeForWhatsApp } from '@/services/whatsappService';
 import { useParams, useLocation } from 'react-router-dom';
 
 interface ChatInterfaceProps {
@@ -166,7 +166,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
           whatsappConfig.apiKey.trim() !== '') {
         
         try {
-          const notificationContent = `NutriLokal: Ada pesan baru dari chatbot\n\nPertanyaan: ${userMessage}\n\nJawaban: ${botResponse}`;
+          // Format the WhatsApp message with better recipe formatting if it contains recipe content
+          const isRecipeQuery = userMessage.toLowerCase().includes('resep') || 
+                              userMessage.toLowerCase().includes('masak') || 
+                              userMessage.toLowerCase().includes('makanan');
+          
+          let notificationContent;
+          if (isRecipeQuery) {
+            // Format as a recipe notification
+            notificationContent = formatRecipeForWhatsApp(userMessage, botResponse);
+          } else {
+            // Regular notification format
+            notificationContent = `NutriLokal: Ada pesan baru dari chatbot\n\nPertanyaan: ${userMessage}\n\nJawaban: ${botResponse}`;
+          }
           
           const notificationSent = await sendWhatsAppNotification(
             notificationContent, 
