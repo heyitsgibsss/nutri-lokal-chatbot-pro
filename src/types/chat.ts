@@ -10,9 +10,10 @@ export interface ChatMessage {
 
 export interface ChatSession {
   id: string;
-  name: string;
-  created_at: string;
-  preview: string;
+  title: string;        // Changed from 'name' to match the database
+  created_at: string;   // Using snake_case to match the database structure
+  updated_at: string;   // Using snake_case to match the database structure
+  // Removing 'preview' as it's not used in the codebase
 }
 
 export interface WhatsAppConfig {

@@ -20,7 +20,7 @@ export const getSessions = async (): Promise<ChatSession[]> => {
       return [];
     }
     
-    return sessions;
+    return sessions as ChatSession[];
   } catch (error) {
     console.error('Error fetching sessions:', error);
     return [];
@@ -66,7 +66,7 @@ export const getSessionById = async (sessionId: string): Promise<ChatSession | n
       return null;
     }
     
-    return session;
+    return session as ChatSession;
   } catch (error) {
     console.error('Error fetching session:', error);
     return null;

@@ -76,14 +76,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
             setMessages(sessionMessages.map(msg => ({
               id: msg.id,
               content: msg.content,
-              isUser: msg.is_user,
+              isUser: msg.isUser,
               timestamp: msg.timestamp
             })));
             setSessionId(session.id);
             sessionStorage.setItem('current_session_id', session.id);
             
             // Check if this session has any user messages
-            const hasUserMessages = sessionMessages.some(msg => msg.is_user);
+            const hasUserMessages = sessionMessages.some(msg => msg.isUser);
             setHasUserInput(hasUserMessages);
             
             setIsInitializing(false);
