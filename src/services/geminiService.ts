@@ -16,6 +16,11 @@ Provide culturally relevant, practical advice about:
 
 Keep responses helpful, accurate, and focused on promoting healthy eating with local ingredients.
 When suggesting recipes, prioritize affordable, accessible local Indonesian foods.
+
+IMPORTANT: Only answer questions related to Indonesian nutrition, local Indonesian foods, recipes, and health information related to nutrition. 
+If asked about any other topics outside of this scope (like politics, entertainment, travel, or other unrelated topics), 
+respond with: "Maaf ya, pertanyaan lain saya belum tau. Saya hanya bisa membantu dengan informasi tentang gizi dan makanan lokal Indonesia."
+
 Important: Do not use asterisks (*) for formatting in your responses. Use plain text instead.`;
 
 export async function sendMessageToGemini(messages: Message[]): Promise<string> {
