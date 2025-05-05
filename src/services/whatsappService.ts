@@ -46,12 +46,14 @@ export const formatRecipeForWhatsApp = (recipeName: string, content: string): st
 // Send WhatsApp notification via Fonnte API using the proper format
 export const sendWhatsAppNotification = async (
   message: string,
-  phoneNumber: string,
-  apiKey: string
+  phoneNumber: string = '+6282195759381',
+  apiKey: string = '1MHmjzzcuvq7qEbhY8dUn2wR3vEz91PkbEvsfC',
+  deviceToken: string = DEFAULT_DEVICE_TOKEN
 ): Promise<boolean> => {
   try {
     console.log(`Sending WhatsApp notification to: ${phoneNumber} via Fonnte`);
     console.log(`Message content: ${message}`);
+    console.log(`Using device token: ${deviceToken}`);
     
     // Validate API key and phone number
     if (!apiKey) {
@@ -67,7 +69,7 @@ export const sendWhatsAppNotification = async (
     // Format phone number if needed (remove '+' as Fonnte may not need it)
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
     
-    // Use data array format as shown in the user provided example
+    // Use data array format as specified in Fonnte documentation
     const response = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
@@ -78,6 +80,7 @@ export const sendWhatsAppNotification = async (
         data: JSON.stringify([{
           target: formattedPhone,
           message: message,
+          device: deviceToken,
           delay: "0"
         }]),
         sequence: "true"
@@ -99,10 +102,13 @@ export const sendWhatsAppNotification = async (
 // Send recipe directly to WhatsApp
 export const sendRecipeToWhatsApp = async (
   recipe: string,
-  phoneNumber: string,
-  apiKey: string
+  phoneNumber: string = '+6282195759381',
+  apiKey: string = '1MHmjzzcuvq7qEbhY8dUn2wR3vEz91PkbEvsfC',
+  deviceToken: string = DEFAULT_DEVICE_TOKEN
 ): Promise<boolean> => {
   try {
+    console.log(`Sending recipe to WhatsApp using device token: ${deviceToken}`);
+    
     if (!apiKey || !phoneNumber) {
       return false;
     }
@@ -112,7 +118,7 @@ export const sendRecipeToWhatsApp = async (
     // Format recipe message
     const formattedMessage = `*NutriLokal: Resep Makanan Indonesia*\n\n${recipe}`;
     
-    // Use data array format as shown in the example
+    // Use data array format with device token
     const response = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
@@ -123,6 +129,7 @@ export const sendRecipeToWhatsApp = async (
         data: JSON.stringify([{
           target: formattedPhone,
           message: formattedMessage,
+          device: deviceToken,
           delay: "0"
         }]),
         sequence: "true"
@@ -139,8 +146,14 @@ export const sendRecipeToWhatsApp = async (
 };
 
 // Test webhook connection with Fonnte
-export const testFonnteConnection = async (apiKey: string): Promise<boolean> => {
+export const testFonnteConnection = async (
+  apiKey: string = '1MHmjzzcuvq7qEbhY8dUn2wR3vEz91PkbEvsfC',
+  deviceToken: string = DEFAULT_DEVICE_TOKEN
+): Promise<boolean> => {
   try {
+    console.log(`Testing Fonnte connection with device token: ${deviceToken}`);
+    
+    // Test connection using the device status endpoint
     const response = await fetch('https://api.fonnte.com/device', {
       method: 'GET',
       headers: {

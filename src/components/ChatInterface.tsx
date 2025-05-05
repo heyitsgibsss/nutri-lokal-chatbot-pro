@@ -302,7 +302,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
           const notificationSent = await sendWhatsAppNotification(
             notificationContent, 
             whatsappConfig.phoneNumber, 
-            whatsappConfig.apiKey
+            whatsappConfig.apiKey,
+            whatsappConfig.deviceToken
           );
           
           if (notificationSent) {
@@ -384,7 +385,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
       const sent = await sendRecipeToWhatsApp(
         messageContent,
         whatsappConfig.phoneNumber,
-        whatsappConfig.apiKey
+        whatsappConfig.apiKey,
+        whatsappConfig.deviceToken
       );
       
       if (sent) {
