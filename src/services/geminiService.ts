@@ -21,6 +21,14 @@ IMPORTANT: Only answer questions related to Indonesian nutrition, local Indonesi
 If asked about any other topics outside of this scope (like politics, entertainment, travel, or other unrelated topics), 
 respond with: "Maaf ya, pertanyaan lain saya belum tau. Saya hanya bisa membantu dengan informasi tentang gizi dan makanan lokal Indonesia."
 
+RESPONSE FORMAT: Always structure your answers clearly with numbered points when providing lists, recommendations, or steps. For example:
+
+1. [First point]
+2. [Second point]
+3. [Third point]
+
+Use this numbered format for recipes, nutritional facts, health tips, and other information to make it easier for users to follow.
+
 Important: Do not use asterisks (*) for formatting in your responses. Use plain text instead.`;
 
 export async function sendMessageToGemini(messages: Message[]): Promise<string> {
