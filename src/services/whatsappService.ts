@@ -153,16 +153,30 @@ export const testFonnteConnection = async (
   try {
     console.log(`Testing Fonnte connection with device token: ${deviceToken}`);
     
-    // Test connection using the device status endpoint
-    const response = await fetch('https://api.fonnte.com/device', {
-      method: 'GET',
+    // Menggunakan endpoint /send untuk tes koneksi dengan pesan pengujian
+    // karena endpoint /device menghasilkan "Method Not Allowed"
+    const testPhone = '6282195759381'; // Gunakan nomor default untuk tes
+    const testMessage = "Test koneksi NutriLokal";
+    
+    const response = await fetch('https://api.fonnte.com/send', {
+      method: 'POST',
       headers: {
-        'Authorization': apiKey
-      }
+        'Authorization': apiKey,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        data: JSON.stringify([{
+          target: testPhone,
+          message: testMessage,
+          device: deviceToken,
+          delay: "0"
+        }]),
+        sequence: "true"
+      })
     });
     
     const data = await response.json();
-    console.log('Fonnte device status:', data);
+    console.log('Fonnte test connection response:', data);
     
     // Check if the connection was successful
     return data && data.status === true;
