@@ -3,6 +3,7 @@ import React from 'react';
 import Header from '@/components/Header';
 import ChatInterface from '@/components/ChatInterface';
 import InfoSection from '@/components/InfoSection';
+import BMICalculator from '@/components/BMICalculator';
 import Footer from '@/components/Footer';
 
 const Index: React.FC = () => {
@@ -65,6 +66,9 @@ const Index: React.FC = () => {
 
         {/* Info Section */}
         <InfoSection />
+        
+        {/* BMI Calculator */}
+        <BMICalculator />
       </main>
 
       <Footer />

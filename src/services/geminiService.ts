@@ -15,7 +15,8 @@ Provide culturally relevant, practical advice about:
 - Addressing malnutrition issues like stunting and anemia
 
 Keep responses helpful, accurate, and focused on promoting healthy eating with local ingredients.
-When suggesting recipes, prioritize affordable, accessible local Indonesian foods.`;
+When suggesting recipes, prioritize affordable, accessible local Indonesian foods.
+Important: Do not use asterisks (*) for formatting in your responses. Use plain text instead.`;
 
 export async function sendMessageToGemini(messages: Message[]): Promise<string> {
   try {
@@ -57,8 +58,11 @@ export async function sendMessageToGemini(messages: Message[]): Promise<string> 
     const data = await response.json();
     
     // Extract the response text from Gemini
-    const responseText = data.candidates[0]?.content?.parts[0]?.text || 
+    let responseText = data.candidates[0]?.content?.parts[0]?.text || 
       "I apologize, but I'm having trouble generating a response right now.";
+    
+    // Post-process the response to remove asterisks
+    responseText = responseText.replace(/\*\*/g, '');
     
     return responseText;
   } catch (error) {
