@@ -2,7 +2,7 @@
 import { WhatsAppConfig } from "@/types/chat";
 
 const WHATSAPP_CONFIG_KEY = 'nutrilokal-whatsapp-config';
-const DEFAULT_DEVICE_TOKEN = 'Rs3jgVypgwVVAQAFnzbR'; // Default Fonnte device token from the user
+const DEFAULT_DEVICE_TOKEN = 'jbBn9PMyMNvr1UoGLRFZ'; // Updated Fonnte device token from the user
 
 // Save WhatsApp config to localStorage
 export const saveWhatsAppConfig = (config: WhatsAppConfig): void => {
