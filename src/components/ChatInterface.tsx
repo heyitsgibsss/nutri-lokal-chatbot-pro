@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Send, WhatsApp } from 'lucide-react';
+import { Loader2, Send, MessageSquare } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
 import { 
   createSession, 
@@ -342,7 +341,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialSessionId }) => {
                   {isSendingWhatsApp ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <WhatsApp className="h-4 w-4" />
+                    <MessageSquare className="h-4 w-4" />
                   )}
                   Kirim Resep ke WhatsApp
                 </Button>

@@ -2,6 +2,7 @@
 import { WhatsAppConfig } from "@/types/chat";
 
 const WHATSAPP_CONFIG_KEY = 'nutrilokal-whatsapp-config';
+const DEFAULT_DEVICE_TOKEN = 'Rs3jgVypgwVVAQAFnzbR'; // Default Fonnte device token
 
 // Save WhatsApp config to localStorage
 export const saveWhatsAppConfig = (config: WhatsAppConfig): void => {
@@ -15,7 +16,8 @@ export const getWhatsAppConfig = (): WhatsAppConfig => {
     enabled: false,
     phoneNumber: '',
     apiKey: '',
-    provider: 'fonnte'
+    provider: 'fonnte',
+    deviceToken: DEFAULT_DEVICE_TOKEN
   };
 };
 
@@ -65,16 +67,20 @@ export const sendWhatsAppNotification = async (
     // Format phone number if needed (remove '+' as Fonnte may not need it)
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
     
-    // Call Fonnte API with the new format
+    // Use data array format as shown in the example
     const response = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
         'Authorization': apiKey,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify({
-        target: formattedPhone,
-        message: message
+      body: new URLSearchParams({
+        data: JSON.stringify([{
+          target: formattedPhone,
+          message: message,
+          delay: "0"
+        }]),
+        sequence: "true"
       })
     });
     
@@ -106,22 +112,49 @@ export const sendRecipeToWhatsApp = async (
     // Format recipe message
     const formattedMessage = `*NutriLokal: Resep Makanan Indonesia*\n\n${recipe}`;
     
+    // Use data array format as shown in the example
     const response = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
         'Authorization': apiKey,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify({
-        target: formattedPhone,
-        message: formattedMessage
+      body: new URLSearchParams({
+        data: JSON.stringify([{
+          target: formattedPhone,
+          message: formattedMessage,
+          delay: "0"
+        }]),
+        sequence: "true"
       })
     });
     
     const data = await response.json();
+    console.log('Fonnte API response:', data);
     return data && data.status === true;
   } catch (error) {
     console.error('Error sending recipe to WhatsApp:', error);
+    return false;
+  }
+};
+
+// Test webhook connection with Fonnte
+export const testFonnteConnection = async (apiKey: string): Promise<boolean> => {
+  try {
+    const response = await fetch('https://api.fonnte.com/device', {
+      method: 'GET',
+      headers: {
+        'Authorization': apiKey
+      }
+    });
+    
+    const data = await response.json();
+    console.log('Fonnte device status:', data);
+    
+    // Check if the connection was successful
+    return data && data.status === true;
+  } catch (error) {
+    console.error('Error testing Fonnte connection:', error);
     return false;
   }
 };
